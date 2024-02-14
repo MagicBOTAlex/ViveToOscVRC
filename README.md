@@ -1,9 +1,9 @@
 # Info
-The reason you would want to this is FTB with base stations + Quest 2 full hand tracking in VRChat.
+The reason you would want to this is FTB with base stations + Quest 2 full hand tracking in VRChat. <br>
 I need help with this project. Please contact me if you know how to use OSC trackers.
 
 # Features
-[x] Sends data through OSC to VRChat.
+[x] Sends data through OSC to VRChat. <br>
 [] Calibration
 
 # Problems
