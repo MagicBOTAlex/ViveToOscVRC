@@ -1,8 +1,10 @@
 ﻿using Rug.Osc;
+using System;
 using System.Diagnostics;
 using System.Net;
 using System.Numerics;
 using System.Reflection;
+using System.Text;
 using Valve.VR;
 
 namespace ViveToOscVRC
@@ -10,6 +12,8 @@ namespace ViveToOscVRC
     internal class Program
     {
         // tracking/tracker/1/position
+
+        static float lowestPoint = 0;
 
         static async Task Main()
         {
@@ -21,10 +25,19 @@ namespace ViveToOscVRC
             sender.Connect();
 
             InitializeOpenVR();
+            int numOfLines = 0;
+            StringBuilder sb = new StringBuilder();
 
             while (true)
             {
-                await Console.Out.WriteLineAsync("\nTracked devices");
+                sb.Append($"\nTracked devices. Floor offset: {lowestPoint}");
+                numOfLines++;
+
+                // If tracker flies away, then reset floor offset
+                if (Math.Abs(lowestPoint) > 3)
+                {
+                    lowestPoint = 0;
+                }
 
                 for (uint i = 0; i < OpenVR.k_unMaxTrackedDeviceCount; i++)
                 {
@@ -37,12 +50,32 @@ namespace ViveToOscVRC
 
                     Vector3 pos = trackerInfo.Value.Position;
                     Vector3 rot = trackerInfo.Value.EulerRotation;
+                    //rot *= 180;
+
+                    //rot = new Vector3(rot.X, rot.Y, rot.Z);
+
+                    if (lowestPoint > pos.Y)
+                    {
+                        lowestPoint = pos.Y;
+                    }
+                    else
+                    {
+                        pos.Y -= lowestPoint;
+                    }
+
 
                     sender.Send(new OscMessage($"/tracking/trackers/{i}/position", pos.X, pos.Y, pos.Z));
                     sender.Send(new OscMessage($"/tracking/trackers/{i}/rotation", rot.X, rot.Y, rot.Z));
+
+                    sb.Append($"\nTracker {i}\nPosition: ( {pos.X.ToString("+0.00;-0.00")}, {pos.Y.ToString("+0.00;-0.00")}, {pos.Z.ToString("+0.00;-0.00")})\nRotation: ( {rot.X.ToString("+000.0;-000.0")}, {rot.Y.ToString("+000.0;-000.0")}, {rot.Z.ToString("+000.0;-000.0")})\n");
+                    numOfLines += 4;
                 }
 
-                await Task.Delay(100);
+                await Console.Out.WriteAsync(sb.ToString());
+                sb.Clear();
+                Console.SetCursorPosition(0, 0);
+                numOfLines = 0;
+                await Task.Delay(1);
             }
         }
 
@@ -72,23 +105,28 @@ namespace ViveToOscVRC
             var pose = poses[trackerIndex];
             if (pose.bPoseIsValid)
             {
-                var mat34 = pose.mDeviceToAbsoluteTracking;
+                HmdMatrix34_t mat34 = pose.mDeviceToAbsoluteTracking;
 
                 // Position
                 Vector3 position = new Vector3(mat34.m3,
                                            mat34.m7,
                                            mat34.m11);
 
-                // Rotation (quaternion)   
-                Quaternion rotation = GetRotationFromMatrix(mat34);
-                Vector3 EulerRotation = RotateVector(Vector3.UnitY, rotation);
+                // Don't know why but this has to be done apparently
+                position = new Vector3(position.X, position.Y, -position.Z);
 
-                Console.WriteLine($"[{trackerIndex}] Pos: {position} Rot: {EulerRotation}");
+                // Rotation
+                Vector3 rotation = mat34.ExtractRotation().Qua2Eul().ToDegrees();
+
+                //rotation = rotation.ToDegrees();
+
+                rotation = new Vector3(rotation.Z, rotation.X, rotation.Y); // rotation not correct
+                //Vector3 rotation = new Vector3(mat34.m2, mat34.m6, mat34.m10);
+                //rotation *= 360;
 
                 TrackerInfo trackerInfo = new TrackerInfo();
                 trackerInfo.Position = position;
-                trackerInfo.EulerRotation = EulerRotation;
-                trackerInfo.Rotation = rotation;
+                trackerInfo.EulerRotation = rotation;
 
                 return trackerInfo;
             }
@@ -101,29 +139,6 @@ namespace ViveToOscVRC
             public Vector3 Position;
             public Vector3 EulerRotation;
             public Quaternion Rotation;
-        }
-
-        public static Quaternion GetRotationFromMatrix(HmdMatrix34_t matrix)
-        {
-            Quaternion q = new Quaternion();
-            q.W = (float)Math.Sqrt(Math.Max(0, 1 + matrix.m0 + matrix.m5 + matrix.m10)) / 2;
-            q.X = (float)Math.Sqrt(Math.Max(0, 1 + matrix.m0 - matrix.m5 - matrix.m10)) / 2;
-            q.Y = (float)Math.Sqrt(Math.Max(0, 1 - matrix.m0 + matrix.m5 - matrix.m10)) / 2;
-            q.Z = (float)Math.Sqrt(Math.Max(0, 1 - matrix.m0 - matrix.m5 + matrix.m10)) / 2;
-            q.X *= Math.Sign(q.X * (matrix.m9 - matrix.m6));
-            q.Y *= Math.Sign(q.Y * (matrix.m2 - matrix.m8));
-            q.Z *= Math.Sign(q.Z * (matrix.m4 - matrix.m1));
-            return q;
-        }
-
-        static Vector3 RotateVector(Vector3 vector, Quaternion quaternion)
-        {
-            // Rotate the vector using the quaternion
-            Quaternion conjugate = Quaternion.Conjugate(quaternion);
-            Quaternion result = quaternion * new Quaternion(vector, 0) * conjugate;
-
-            // Extract the rotated vector from the resulting quaternion
-            return new Vector3(result.X, result.Y, result.Z);
         }
     }
 }
