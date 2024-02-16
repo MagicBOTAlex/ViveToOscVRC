@@ -2,13 +2,14 @@
 The reason you would want to this is FTB with base stations + Quest 2 full hand tracking in VRChat. <br>
 I need help with this project. Please contact me if you know how to use OSC trackers.
 
+### Swttiched to Unity based application: https://github.com/MagicBOTAlex/ViveToOscVRC-Unity
+
 # Features
 [x] Sends data through OSC to VRChat. <br>
 [] Calibration
 
 # Problems
-* The trackers are really far away. I don't know how to calibrate them for the Quest 2.
-* Orientation. I again do not know how to calibrate this.
+* Tracker rotations. (Quaternions are too hard)
 
 # How to build
 1. Open project in VS2022 (I don't use vscode) <br>
