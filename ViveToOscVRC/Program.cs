@@ -116,11 +116,11 @@ namespace ViveToOscVRC
                 position = new Vector3(position.X, position.Y, -position.Z);
 
                 // Rotation
-                Vector3 rotation = mat34.ExtractRotation().Qua2Eul().ToDegrees();
+                Vector3 rotation = mat34.ExtractRotation().ToEulerAngles();
 
                 //rotation = rotation.ToDegrees();
 
-                rotation = new Vector3(rotation.Z, rotation.X, rotation.Y); // rotation not correct
+                //rotation = new Vector3(rotation.Z, rotation.X, rotation.Y); // rotation not correct
                 //Vector3 rotation = new Vector3(mat34.m2, mat34.m6, mat34.m10);
                 //rotation *= 360;
 
